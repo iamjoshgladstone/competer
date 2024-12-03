@@ -1,6 +1,6 @@
 <template>
   <q-page class="flex flex-center">
-    <q-btn push color="primary" label="Generate Battlecard" to="/page2" />
+    <q-card>This is page 2</q-card>
   </q-page>
 </template>
 
