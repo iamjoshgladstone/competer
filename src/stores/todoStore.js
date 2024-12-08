@@ -49,5 +49,28 @@ export const useTodoStore = defineStore("todoStore", {
         return { error: err };
       }
     },
+
+    async removeTodo(id) {
+      try {
+        // Delete the task from Supabase by its ID
+        const { data, error } = await supabase
+          .from("todos")
+          .delete()
+          .eq("id", id); // Filters the row to delete based on ID
+
+        if (error) {
+          console.error("Error removing task:", error.message);
+          return { error };
+        } else {
+          console.log("Task removed from Supabase:", data);
+          // Update the local state by filtering out the deleted task
+          this.todos = this.todos.filter((todo) => todo.id !== id);
+          return { data };
+        }
+      } catch (err) {
+        console.error("Unexpected error:", err);
+        return { error: err };
+      }
+    },
   },
 });

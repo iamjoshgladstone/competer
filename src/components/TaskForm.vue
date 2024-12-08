@@ -5,7 +5,7 @@
       <q-input v-model="task" label="Enter Task" outlined required />
 
       <!-- Submit Button -->
-      <q-btn type="submit" label="Add Task" color="primary" />
+      <q-btn type="submit" class="q-mt-md" label="Add Task" color="primary" />
     </q-form>
   </q-page>
 </template>
@@ -13,6 +13,7 @@
 <script setup>
 import { ref } from "vue";
 import { useTodoStore } from "../stores/todoStore";
+import { Notify } from "quasar";
 
 // Access the Pinia todoStore
 const todoStore = useTodoStore();
@@ -34,7 +35,12 @@ const submitForm = async () => {
     if (error) {
       console.error("Error adding task:", error.message);
     } else {
-      console.log("Task added successfully:", data);
+      Notify.create({
+        message: "Task added!",
+        type: "positive",
+        position: "bottom",
+        timeout: 2000, // Auto-dismiss after 2 seconds
+      });
       task.value = ""; // Clear the input field after successful submission
       await todoStore.fetchTodos(); // Ensure the state is in sync
     }
