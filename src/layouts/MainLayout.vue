@@ -1,5 +1,5 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <q-layout view="lHh lpR lFf">
     <q-header elevated>
       <q-toolbar>
         <q-btn flat dense round aria-label="Menu" @click="toggleLeftDrawer">
@@ -11,9 +11,15 @@
       </q-toolbar>
     </q-header>
 
-    <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
+    <q-drawer
+      v-model="leftDrawerOpen"
+      show-if-above
+      bordered
+      :width="250"
+      :breakpoint="767"
+    >
       <q-list>
-        <q-item-label header> Essential Links </q-item-label>
+        <q-item-label header> Navigation </q-item-label>
 
         <EssentialLink
           v-for="link in linksList"
@@ -26,6 +32,7 @@
     <q-page-container>
       <router-view />
     </q-page-container>
+    <q-footer class="q-pa-md"> </q-footer>
   </q-layout>
 </template>
 
@@ -39,16 +46,14 @@ defineOptions({
 
 const linksList = [
   {
-    title: "Docs",
-    caption: "quasar.dev",
+    title: "Generate",
     icon: "fitness_center", // Update Material Symbols name here
-    link: "https://quasar.dev",
+    link: "/",
   },
   {
-    title: "Github",
-    caption: "github.com/quasarframework",
-    icon: "play_for_work", // Another Material Symbol example
-    link: "https://github.com/quasarframework",
+    title: "Store",
+    icon: "store", // Another Material Symbol example
+    link: "/page2",
   },
 ];
 
@@ -57,6 +62,12 @@ const leftDrawerOpen = ref(false);
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
+
+const totalSum = ref(0);
+
+const changeOnPageTwo = (newTotalSum) => {
+  totalSum.value = newTotalSum;
+};
 </script>
 
 <style>
