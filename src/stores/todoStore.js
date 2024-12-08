@@ -24,5 +24,30 @@ export const useTodoStore = defineStore("todoStore", {
         console.error("Unexpected error:", err);
       }
     },
+    // add task to Supabase
+    async addTodo(newTodo) {
+      try {
+        // Use `.select()` to request the inserted data to be returned
+        const { data, error } = await supabase
+          .from("todos")
+          .insert(newTodo)
+          .select(); // Request the inserted row(s) to be returned
+
+        if (error) {
+          console.error("Error adding task:", error.message);
+          return { error };
+        } else {
+          console.log("Task added to Supabase:", data);
+          // Ensure that data is iterable (it's an array)
+          if (data && data.length > 0) {
+            this.todos.push(...data); // Optimistic update
+          }
+          return { data };
+        }
+      } catch (err) {
+        console.error("Unexpected error:", err);
+        return { error: err };
+      }
+    },
   },
 });
