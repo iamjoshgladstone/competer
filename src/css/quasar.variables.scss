@@ -1,25 +1,66 @@
-// Quasar SCSS (& Sass) Variables
+// Quasar SCSS Variables
 // --------------------------------------------------
-// To customize the look and feel of this app, you can override
-// the Sass/SCSS variables found in Quasar's source Sass/SCSS files.
+// Colors
+$primary: #620dec;
+$secondary: #a585ff;
+$accent: #12aabf;
+$headerbackground: #ffebee;
 
-// Check documentation for full list of Quasar variables
+$dark: #011627;
+$dark-page: #717171;
 
-// Your own variables (that are declared here) and Quasar's own
-// ones will be available out of the box in your .vue/.scss/.sass files
+$positive: #00874a;
+$negative: #eb111c;
+$info: #3751ff;
+$warning: #fdb735;
 
-// It's highly recommended to change the default colors
-// to match your app's branding.
-// Tip: Use the "Theme Builder" on Quasar's documentation website.
+// Spacing
+$spacer-none: 0px;
+$spacer-hair: 1px;
+$spacer-xxxsmall: 2px;
+$spacer-xxsmall: 4px;
+$spacer-xsmall: 8px;
+$spacer-small: 12px;
+$spacer-medium: 16px;
+$spacer-large: 20px;
+$spacer-xlarge: 24px;
+$spacer-xxlarge: 32px;
+$spacer-xxxlarge: 64px;
 
-$primary   : #1976D2;
-$secondary : #26A69A;
-$accent    : #9C27B0;
+// Border Radius
+$border-radius-small: 3px;
+$border-radius-medium: 5px;
+$border-radius-large: 8px;
+$border-radius-full: 100vmax;
 
-$dark      : #1D1D1D;
-$dark-page : #121212;
+// Typography
+$font-family-primary: "Barlow", sans-serif;
+$font-family-secondary: "Inter", sans-serif;
 
-$positive  : #21BA45;
-$negative  : #C10015;
-$info      : #31CCEC;
-$warning   : #F2C037;
+$font-size-body-xsmall: 10px;
+$font-size-body-small: 12px;
+$font-size-body-medium: 14px;
+$font-size-body-large: 16px;
+$font-size-body-xlarge: 18px;
+
+$font-size-heading-xsmall: 14px;
+$font-size-heading-small: 16px;
+$font-size-heading-medium: 18px;
+$font-size-heading-large: 20px;
+$font-size-heading-xlarge: 24px;
+
+// Shadows
+$box-shadow-none: 0px 0px 0px rgba(1, 22, 39, 0);
+$box-shadow-xsmall: 0px 1px 2px rgba(1, 22, 39, 0.1);
+$box-shadow-small: 0px 2px 4px rgba(1, 22, 39, 0.12);
+$box-shadow-medium: 0px 4px 8px rgba(1, 22, 39, 0.15);
+$box-shadow-large: 0px 4px 10px rgba(1, 22, 39, 0.2);
+$box-shadow-xlarge: 0px 4px 12px rgba(1, 22, 39, 0.25);
+
+// Breakpoints
+$breakpoint-xxsmall: 412px;
+$breakpoint-xsmall: 562px;
+$breakpoint-small: 768px;
+$breakpoint-medium: 1024px;
+$breakpoint-large: 1340px;
+$breakpoint-xlarge: 1750px;
