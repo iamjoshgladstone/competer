@@ -1,30 +1,38 @@
 <template>
-  <div class="q-pa-md" style="max-width: 400px">
-    <q-form @submit="onSubmit" @reset="onReset" class="q-gutter-md">
-      <q-input
-        filled
-        v-model="name"
-        label="Your name *"
-        hint="Name and surname"
-        lazy-rules
-        :rules="[(val) => (val && val.length > 0) || 'Please type something']"
-      />
+  <q-page class="q-pa-ma flex flex-center column">
+    <h3 class="q-gutter-md">Login to Competer</h3>
 
+    <!-- Login form -->
+    <q-form @submit.prevent="login" @reset="onReset">
       <q-input
         filled
-        type="number"
-        v-model="age"
-        label="Your age *"
+        v-model="email"
+        label="Email"
         lazy-rules
         :rules="[
-          (val) => (val !== null && val !== '') || 'Please type your age',
-          (val) => (val > 0 && val < 100) || 'Please type a real age',
+          (val, rules) => !!val || 'Email is required',
+          (val, rules) =>
+            rules.email(val) || 'Please enter a valid email address',
+          () => emailErrorMessage || true, // Dynamically show error from emailErrorMessage
         ]"
       />
 
-      <q-toggle v-model="accept" label="I accept the license and terms" />
+      <q-input
+        filled
+        type="password"
+        v-model="password"
+        label="Password"
+        id="password"
+        lazy-rules
+        class="q-mt-sm"
+        :rules="[
+          (val) => !!val || 'Password is required',
+          (val) => val.length >= 5 || 'Password must be at least 5 characters',
+          () => passwordErrorMessage || true, // Dynamically show error from passwordErrorMessage
+        ]"
+      />
 
-      <div>
+      <div class="q-mt-md">
         <q-btn label="Submit" type="submit" color="primary" />
         <q-btn
           label="Reset"
@@ -34,41 +42,80 @@
           class="q-ml-sm"
         />
       </div>
+
+      <router-link
+        class="q-mt-sm no-underline"
+        to="/register"
+        style="display: block; text-decoration: none"
+        >Already have an account? Click here to
+        <span
+          style="
+            background-color: #fb3fb3;
+            color: #fff;
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-decoration: none;
+          "
+        >
+          sign up instead.
+        </span>
+      </router-link>
     </q-form>
-  </div>
+  </q-page>
 </template>
 
 <script setup>
 import { useQuasar } from "quasar";
 import { ref } from "vue";
+import { supabase } from "app/utils/supabase";
+import { useRouter } from "vue-router";
 
 const $q = useQuasar();
+const router = useRouter();
 
-const name = ref(null);
-const age = ref(null);
-const accept = ref(false);
+const email = ref(null);
+const password = ref(null);
+const emailErrorMessage = ref(null);
+const passwordErrorMessage = ref(null);
 
-const onSubmit = () => {
-  if (accept.value !== true) {
-    $q.notify({
-      color: "red-5",
-      textColor: "white",
-      icon: "warning",
-      message: "You need to accept the license and terms first",
+const login = async () => {
+  // Clear previous error messages
+  emailErrorMessage.value = null;
+  passwordErrorMessage.value = null;
+
+  try {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.value,
+      password: password.value,
     });
-  } else {
-    $q.notify({
-      color: "green-4",
-      textColor: "white",
-      icon: "cloud_done",
-      message: "Submitted",
-    });
+
+    if (error) {
+      // Update error messages dynamically based on login failure
+      if (error.message.includes("email")) {
+        emailErrorMessage.value = "Invalid email address.";
+      } else if (error.message.includes("password")) {
+        passwordErrorMessage.value = "Incorrect password.";
+      } else {
+        $q.notify({
+          color: "red-5",
+          textColor: "white",
+          icon: "error",
+          message: error.message || "Login failed.",
+        });
+      }
+      throw error;
+    }
+
+    router.push("/");
+  } catch (error) {
+    console.error(error);
   }
 };
 
 const onReset = () => {
-  name.value = null;
-  age.value = null;
-  accept.value = false;
+  email.value = null;
+  password.value = null;
+  emailErrorMessage.value = null;
+  passwordErrorMessage.value = null;
 };
 </script>

@@ -10,10 +10,10 @@
           >Competer
         </q-toolbar-title>
         <q-tabs align="right">
-          <q-route-tab to="/" label="Home" />
-          <q-route-tab to="/create" label="Create" />
-          <q-route-tab to="/login" label="Login" />
-          <q-route-tab v-if="auth" to="/signin" label="Logout" />
+          <q-route-tab v-if="auth" to="/" exact label="Home" />
+          <q-route-tab v-if="auth" to="/create" label="Create" />
+          <q-route-tab v-if="!auth" to="/login" label="Login" />
+          <q-route-tab v-if="auth" label="Logout" @click="logoutUser" />
         </q-tabs>
       </q-toolbar>
     </q-header>
@@ -26,9 +26,17 @@
 
 <script setup>
 import { ref } from "vue";
-import EssentialLink from "components/EssentialLink.vue";
+import { auth } from "src/stores/authStore";
+import { useRouter } from "vue-router";
+import { supabase } from "app/utils/supabase";
 
-const auth = ref(false);
+const router = useRouter();
+
+const logoutUser = async () => {
+  await supabase.auth.signOut();
+  router.push("/login");
+  auth.value = false;
+};
 
 defineOptions({
   name: "MainLayout",

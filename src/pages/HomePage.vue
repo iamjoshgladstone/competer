@@ -1,100 +1,96 @@
 <template>
   <q-page class="q-pa-md">
-    <q-transition name="fade">
-      <div v-if="pageState === 'input'">
-        <q-card class="q-pa-md">
-          <q-input
-            filled
-            v-model="companyName"
-            label="Type in your company name"
-            clearable
-            class="q-mb-md"
-          ></q-input>
+    <div v-if="pageState === 'input'">
+      <q-card class="q-pa-md">
+        <q-input
+          filled
+          v-model="companyName"
+          label="Type in your company name"
+          clearable
+          class="q-mb-md"
+        ></q-input>
+        <q-btn
+          label="Submit"
+          color="primary"
+          @click="generateCompetitors"
+          :loading="loading"
+          class="q-mb-md"
+          :disable="!companyName"
+        ></q-btn>
+
+        <q-card-section v-if="competitors.length > 0">
+          <q-select
+            v-model="selectedCompetitor"
+            :options="competitors"
+            label="Select a Competitor"
+            rounded
+            outlined
+            dense
+          ></q-select>
           <q-btn
-            label="Submit"
+            class="q-mt-lg"
+            label="Generate Battlecard"
             color="primary"
-            @click="generateCompetitors"
-            :loading="loading"
-            class="q-mb-md"
-            :disable="!companyName"
+            :disable="!selectedCompetitor"
+            @click="generateBattlecard"
           ></q-btn>
+        </q-card-section>
+      </q-card>
+    </div>
 
-          <q-card-section v-if="competitors.length > 0">
-            <q-select
-              v-model="selectedCompetitor"
-              :options="competitors"
-              label="Select a Competitor"
-              rounded
-              outlined
-              dense
-            ></q-select>
-            <q-btn
-              class="q-mt-lg"
-              label="Generate Battlecard"
-              color="primary"
-              :disable="!selectedCompetitor"
-              @click="generateBattlecard"
-            ></q-btn>
-          </q-card-section>
-        </q-card>
-      </div>
-    </q-transition>
+    <div v-if="pageState === 'battlecard'">
+      <q-card class="q-pa-md">
+        <h3>{{ selectedCompetitor }} - Strengths</h3>
+        <q-list bordered>
+          <q-item v-for="strength in strengths" :key="strength.id">
+            <q-item-section>{{ strength.content }}</q-item-section>
+            <q-item-section side>
+              <q-btn
+                icon="check"
+                color="positive"
+                flat
+                @click="handleVote(strength.id, 'upvote')"
+              ></q-btn>
+              <q-btn
+                icon="close"
+                color="negative"
+                flat
+                @click="handleVote(strength.id, 'downvote')"
+              ></q-btn>
+            </q-item-section>
+          </q-item>
+        </q-list>
 
-    <q-transition name="slide-left">
-      <div v-if="pageState === 'battlecard'">
-        <q-card class="q-pa-md">
-          <h3>{{ selectedCompetitor }} - Strengths</h3>
-          <q-list bordered>
-            <q-item v-for="strength in strengths" :key="strength.id">
-              <q-item-section>{{ strength.content }}</q-item-section>
-              <q-item-section side>
-                <q-btn
-                  icon="check"
-                  color="positive"
-                  flat
-                  @click="handleVote(strength.id, 'upvote')"
-                ></q-btn>
-                <q-btn
-                  icon="close"
-                  color="negative"
-                  flat
-                  @click="handleVote(strength.id, 'downvote')"
-                ></q-btn>
-              </q-item-section>
-            </q-item>
-          </q-list>
+        <h3 class="q-mt-lg">{{ selectedCompetitor }} - Weaknesses</h3>
+        <q-list bordered>
+          <q-item v-for="weakness in weaknesses" :key="weakness.id">
+            <q-item-section>{{ weakness.content }}</q-item-section>
+            <q-item-section side>
+              <q-btn
+                icon="check"
+                color="positive"
+                flat
+                @click="handleVote(weakness.id, 'upvote')"
+              ></q-btn>
+              <q-btn
+                icon="close"
+                color="negative"
+                flat
+                @click="handleVote(weakness.id, 'downvote')"
+              ></q-btn>
+            </q-item-section>
+          </q-item>
+        </q-list>
 
-          <h3 class="q-mt-lg">{{ selectedCompetitor }} - Weaknesses</h3>
-          <q-list bordered>
-            <q-item v-for="weakness in weaknesses" :key="weakness.id">
-              <q-item-section>{{ weakness.content }}</q-item-section>
-              <q-item-section side>
-                <q-btn
-                  icon="check"
-                  color="positive"
-                  flat
-                  @click="handleVote(weakness.id, 'upvote')"
-                ></q-btn>
-                <q-btn
-                  icon="close"
-                  color="negative"
-                  flat
-                  @click="handleVote(weakness.id, 'downvote')"
-                ></q-btn>
-              </q-item-section>
-            </q-item>
-          </q-list>
-
-          <q-btn
-            label="Back"
-            color="primary"
-            flat
-            class="q-mt-md"
-            @click="goBack"
-          ></q-btn>
-        </q-card>
-      </div>
-    </q-transition>
+        <q-btn
+          label="Back"
+          color="primary"
+          flat
+          class="q-mt-md"
+          @click="goBack"
+        ></q-btn>
+      </q-card>
+    </div>
   </q-page>
 </template>
 
