@@ -1,1 +1,13 @@
 // app global css in SCSS form
+body {
+  font-family: "Inter", sans-serif; /* Primary font */
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Barlow", sans-serif; /* Use Barlow for headings */
+}

@@ -2,33 +2,21 @@
   <q-layout view="lHh lpR lFf">
     <q-header elevated>
       <q-toolbar>
-        <q-btn flat dense round aria-label="Menu" @click="toggleLeftDrawer">
-          <!-- Updated to use Material Symbols -->
-          <span class="material-symbols-outlined">menu</span>
-        </q-btn>
-
-        <q-toolbar-title> Competer </q-toolbar-title>
+        <q-toolbar-title>
+          <q-avatar class="q-mr-sm">
+            <img
+              src="https://cdn.quasar.dev/logo-v2/svg/logo-mono-white.svg"
+            /> </q-avatar
+          >Competer
+        </q-toolbar-title>
+        <q-tabs align="right">
+          <q-route-tab to="/" label="Home" />
+          <q-route-tab to="/create" label="Create" />
+          <q-route-tab to="/login" label="Login" />
+          <q-route-tab v-if="auth" to="/signin" label="Logout" />
+        </q-tabs>
       </q-toolbar>
     </q-header>
-
-    <q-drawer
-      v-model="leftDrawerOpen"
-      show-if-above
-      bordered
-      :width="250"
-      :breakpoint="767"
-    >
-      <q-list>
-        <q-item-label header> Navigation </q-item-label>
-
-        <EssentialLink
-          v-for="link in linksList"
-          :key="link.title"
-          v-bind="link"
-        />
-      </q-list>
-    </q-drawer>
-
     <q-page-container>
       <router-view />
     </q-page-container>
@@ -40,34 +28,11 @@
 import { ref } from "vue";
 import EssentialLink from "components/EssentialLink.vue";
 
+const auth = ref(false);
+
 defineOptions({
   name: "MainLayout",
 });
-
-const linksList = [
-  {
-    title: "Generate",
-    icon: "fitness_center", // Update Material Symbols name here
-    link: "/",
-  },
-  {
-    title: "Store",
-    icon: "store", // Another Material Symbol example
-    link: "/page2",
-  },
-];
-
-const leftDrawerOpen = ref(false);
-
-function toggleLeftDrawer() {
-  leftDrawerOpen.value = !leftDrawerOpen.value;
-}
-
-const totalSum = ref(0);
-
-const changeOnPageTwo = (newTotalSum) => {
-  totalSum.value = newTotalSum;
-};
 </script>
 
 <style>

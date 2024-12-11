@@ -3,9 +3,9 @@ const routes = [
     path: "/",
     component: () => import("layouts/MainLayout.vue"),
     children: [
-      { path: "", component: () => import("src/pages/GenerateBattlecard.vue") },
-      { path: "/tasklist", component: () => import("src/pages/TaskList.vue") },
-      { path: "/page2", component: () => import("src/pages/PageTwo.vue") },
+      { path: "", component: () => import("src/pages/HomePage.vue") },
+      { path: "/create", component: () => import("src/pages/CreatePage.vue") },
+      { path: "/login", component: () => import("src/pages/LoginPage.vue") },
     ],
   },
 
