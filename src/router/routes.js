@@ -17,6 +17,11 @@ const routes = [
         beforeEnter: authGuard,
       },
       {
+        path: "/create2",
+        component: () => import("src/pages/CreatePage2.vue"),
+        beforeEnter: authGuard,
+      },
+      {
         path: "/login",
         component: () => import("src/pages/LoginPage.vue"),
       },
