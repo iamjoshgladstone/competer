@@ -1,4 +1,8 @@
-import { createRouter, createWebHistory } from "vue-router";
+import {
+  createRouter,
+  createWebHistory,
+  createWebHashHistory,
+} from "vue-router";
 import { authGuard } from "src/use/authGuard";
 
 const routes = [
@@ -14,6 +18,11 @@ const routes = [
       {
         path: "/create",
         component: () => import("src/pages/CreatePage.vue"),
+        beforeEnter: authGuard,
+      },
+      {
+        path: "/create/:uuid", // Dynamic route for the competitor's UUID
+        component: () => import("src/pages/ChildBattlecardPage.vue"), // Create this page
         beforeEnter: authGuard,
       },
       {

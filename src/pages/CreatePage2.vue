@@ -128,8 +128,10 @@ const generateCompetitors = async () => {
 
     const result = await generateContent(content, 0.7, "gpt-4o-mini");
 
-    if (result.competitors) {
-      competitors.value = result.competitors;
+    const parsedResult = JSON.parse(result);
+
+    if (parsedResult.competitors) {
+      competitors.value = parsedResult.competitors;
       // Delay setting `showCompetitors` to true for smooth animation
       setTimeout(() => {
         showCompetitors.value = true;
@@ -156,17 +158,31 @@ const generateBattlecard = async () => {
 
     const result = await generateContent(content, 0.7, "gpt-4o-mini");
 
-    if (result && result.strengths && result.weaknesses) {
-      strengths.value = result.strengths;
-      weaknesses.value = result.weaknesses;
-      loading.value = false;
-    } else {
-      console.error("Unexpected response format:", result);
-      alert("Failed to generate battlecard. Please try again.");
+    try {
+      // Parse the JSON response
+      const parsedResult = JSON.parse(result);
+
+      if (parsedResult.strengths && parsedResult.weaknesses) {
+        strengths.value = parsedResult.strengths;
+        weaknesses.value = parsedResult.weaknesses;
+      } else {
+        console.error(
+          "Parsed result does not contain strengths or weaknesses:",
+          parsedResult
+        );
+        alert("Failed to generate battlecard. Please try again.");
+      }
+    } catch (parseError) {
+      console.error("Error parsing response as JSON:", parseError, result);
+      alert(
+        "Failed to parse response. Please ensure the model returns valid JSON."
+      );
     }
   } catch (error) {
     console.error("Error generating battlecard:", error.message);
     alert(`Error generating battlecard: ${error.message}`);
+  } finally {
+    loading.value = false;
   }
 };
 

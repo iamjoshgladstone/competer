@@ -1,176 +1,258 @@
 <template>
-  <q-page class="q-pa-md">
-    <q-card class="q-pa-md">
-      <q-input
-        filled
-        v-model="companyName"
-        label="Type in your company name"
-        clearable
-        class="q-mb-md"
-      ></q-input>
-      <q-btn
-        label="Submit"
-        color="primary"
-        @click="generateCompetitors"
-        :loading="loading"
-        class="q-mb-md"
-        :disable="!companyName"
-      ></q-btn>
-    </q-card>
-    <transition class="animate__fadeInLeft">
-      <q-card v-if="showCompetitors">
-        <q-card-section>
-          <q-select
-            v-model="selectedCompetitor"
-            :options="competitors"
-            label="Select a Competitor"
-            rounded
-            outlined
-            dense
-          ></q-select>
-          <q-btn
-            class="q-mt-lg"
-            label="Generate Battlecard"
-            color="primary"
-            :disable="!selectedCompetitor"
-            @click="generateBattlecard"
-          ></q-btn>
-        </q-card-section>
-      </q-card>
-    </transition>
+  <q-page style="background-color: #f3f3f3">
+    <div class="q-pa-md">
+      <h4>Select a competitor to generate your battlecard</h4>
 
-    <div v-if="pageState === 'battlecard'">
-      <q-card class="q-pa-md">
-        <h3>{{ selectedCompetitor }} - Strengths</h3>
-        <q-list bordered>
-          <q-item v-for="strength in strengths" :key="strength.id">
-            <q-item-section>{{ strength.content }}</q-item-section>
-            <q-item-section side>
-              <q-btn
-                icon="check"
-                color="positive"
-                flat
-                @click="handleVote(strength.id, 'upvote')"
-              ></q-btn>
-              <q-btn
-                icon="close"
-                color="negative"
-                flat
-                @click="handleVote(strength.id, 'downvote')"
-              ></q-btn>
-            </q-item-section>
-          </q-item>
-        </q-list>
+      <!-- Competitors Grid -->
+      <div class="fit row wrap justify-start items-start content-start">
+        <!-- Render competitors dynamically -->
+        <q-card
+          v-for="competitor in competitors"
+          :key="competitor.id"
+          class="q-pa-sm q-ma-sm"
+          style="cursor: pointer; height: 150px; width: 150px"
+          @click="generateBattlecard(competitor)"
+        >
+          <div class="flex flex-center">
+            <q-img
+              :src="competitor.logo"
+              style="max-width: 75px; object-fit: contain !important"
+              ratio="1"
+              fit="contain"
+              class="q-mb-sm q-pa-sm"
+            />
+          </div>
+          <div class="text-center">{{ competitor.name }}</div>
+        </q-card>
 
-        <h3 class="q-mt-lg">{{ selectedCompetitor }} - Weaknesses</h3>
-        <q-list bordered>
-          <q-item v-for="weakness in weaknesses" :key="weakness.id">
-            <q-item-section>{{ weakness.content }}</q-item-section>
-            <q-item-section side>
-              <q-btn
-                icon="check"
-                color="positive"
-                flat
-                @click="handleVote(weakness.id, 'upvote')"
-              ></q-btn>
-              <q-btn
-                icon="close"
-                color="negative"
-                flat
-                @click="handleVote(weakness.id, 'downvote')"
-              ></q-btn>
-            </q-item-section>
-          </q-item>
-        </q-list>
+        <!-- Add Competitor Card -->
+        <q-card
+          class="q-pa-sm q-ma-sm flex column"
+          style="
+            cursor: pointer;
+            height: 150px;
+            width: 150px;
+            align-items: center;
+            justify-content: center;
+            border: dashed 2px #ccc;
+          "
+          @click="openAddModal"
+        >
+          <q-icon name="add" size="50px" color="primary" />
+          <div class="text-center">Generate for New Competitor</div>
+        </q-card>
+      </div>
 
-        <q-btn
-          label="Back"
-          color="primary"
-          flat
-          class="q-mt-md"
-          @click="goBack"
-        ></q-btn>
-      </q-card>
+      <!-- Add Competitor Modal -->
+      <q-dialog v-model="isModalOpen">
+        <q-card style="max-width: 400px; margin: auto">
+          <q-card-section>
+            <div class="text-h6">Add Competitor</div>
+          </q-card-section>
+
+          <q-card-section>
+            <q-input v-model="newCompetitorUrl" label="Company URL" filled />
+          </q-card-section>
+
+          <q-card-actions align="right">
+            <q-btn
+              flat
+              label="Cancel"
+              color="negative"
+              @click="closeAddModal"
+            />
+            <q-btn
+              flat
+              label="Add Competitor"
+              color="primary"
+              @click="addCompetitor"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
     </div>
   </q-page>
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
-import { useBattlecardActions } from "src/use/useBattlecardActions";
+import { ref, onMounted } from "vue";
 import { useChatCompletion } from "src/use/useChatCompletion";
+import { useQuasar } from "quasar";
+import axios from "axios";
+import { supabase } from "app/utils/supabase";
+import { v4 as uuidv4 } from "uuid"; // Import the UUID generation function
+import { fetchCompanyName, companyName } from "src/stores/authStore";
 
-const companyName = ref(""); // User input for company name
 const competitors = ref([]); // List of competitors
-const selectedCompetitor = ref(""); // Selected competitor
-const loading = ref(false); // Loading state
-const pageState = ref("input"); // Page state: "input" or "battlecard"
-const strengths = ref([]); // List of strengths
-const weaknesses = ref([]); // List of weaknesses
-const showCompetitors = ref(false); // Control visibility of competitors card
+const isModalOpen = ref(false); // Modal state
+const newCompetitorUrl = ref(""); // User-entered competitor URL
 
-const { fetchStrengthsAndWeaknesses, updateVote } = useBattlecardActions();
-const { generateContent } = useChatCompletion();
+const $q = useQuasar();
 
-// Function to generate competitors
-const generateCompetitors = async () => {
-  if (!companyName.value.trim()) {
-    alert("Please enter a company name.");
+const { generateContentSpecificModel } = useChatCompletion(); // Chat Completion API
+
+// Function to fetch the logo from a free API (Clearbit API in this example)
+const fetchLogo = async (domain) => {
+  try {
+    const logoUrl = `https://logo.clearbit.com/${domain}`;
+    const response = await axios.get(logoUrl, { responseType: "blob" });
+    if (response.status === 200) {
+      return logoUrl; // Return the logo URL if valid
+    }
+  } catch (error) {
+    console.error(`Failed to fetch logo for domain ${domain}:`, error.message);
+    return "https://via.placeholder.com/150"; // Placeholder if logo fetch fails
+  }
+};
+
+const fetchOrQueryCompetitors = async () => {
+  try {
+    $q.loading.show();
+
+    // Get the logged-in user
+    const { data: signUpData, error: userError } =
+      await supabase.auth.getUser();
+    if (userError || !signUpData?.user?.id) {
+      console.error(
+        "Error fetching user:",
+        userError?.message || "No user found."
+      );
+      $q.loading.hide();
+      return;
+    }
+
+    // Check if the user has competitors stored in Supabase
+    const { data: userData, error: fetchError } = await supabase
+      .from("userstorage")
+      .select("competitors")
+      .eq("id", signUpData.user.id) // Match the `id` in `userstorage` with the authenticated user's `id`
+      .single();
+
+    if (fetchError && fetchError.code !== "PGRST116") {
+      console.error("Error querying competitors:", fetchError.message);
+      $q.loading.hide();
+      return;
+    }
+
+    if (userData?.competitors) {
+      // If competitors exist in Supabase, use them
+      competitors.value = userData.competitors;
+    } else {
+      // Ensure `companyName` is fetched and use its value
+      await fetchCompanyName(); // Ensure companyName is loaded before using it
+      const companyNameValue = companyName.value || "your company"; // Fallback if companyName is empty
+
+      // Query LLM to generate competitors
+      const prompt = `You are VP of Competitive Enablement for ${companyNameValue}. Generate a JSON list of competitors with fields: name, domain (e.g., domain.com). Just the JSON. Nothing else.`;
+      const model = "gpt-4o";
+      const messages = [{ role: "user", content: prompt }];
+      const temperature = 0.7;
+
+      // Generate competitor list using the LLM
+      const response = await generateContentSpecificModel({
+        model,
+        messages,
+        temperature,
+      });
+
+      console.log("Generated Response from LLM:", response);
+      const parsedResponse = JSON.parse(response);
+
+      // Fetch logos for each competitor and prepare the competitors array
+      const competitorsWithLogos = [];
+      for (const competitor of parsedResponse) {
+        const logo = await fetchLogo(competitor.domain); // Fetch logo using domain
+        competitorsWithLogos.push({
+          id: uuidv4(), // Generate a unique UUID for the competitor
+          name: competitor.name,
+          domain: competitor.domain,
+          logo,
+        });
+      }
+
+      // Save competitors to Supabase
+      const { error: updateError } = await supabase
+        .from("userstorage")
+        .update({ competitors: competitorsWithLogos })
+        .eq("id", signUpData.user.id); // Match the `id` in `userstorage` with the authenticated user's `id`
+
+      if (updateError) {
+        console.error(
+          "Error updating competitors in Supabase:",
+          updateError.message
+        );
+      }
+
+      competitors.value = competitorsWithLogos;
+    }
+  } catch (error) {
+    console.error("Error fetching or querying competitors:", error.message);
+  } finally {
+    $q.loading.hide();
+  }
+};
+
+// Function to add a new competitor
+const addCompetitor = async () => {
+  if (!newCompetitorUrl.value) {
+    alert("Please enter a valid company URL.");
     return;
   }
 
-  loading.value = true;
-  showCompetitors.value = false; // Reset visibility
-
   try {
-    const content = `You are a competitive enablement expert for ${companyName.value}. Create a JSON object with a list of competitors for ${companyName.value} in the following structure: {"competitors":["competitor1", "competitor2", ...]}. Only provide the JSON object as the response.`;
+    const domain = new URL(newCompetitorUrl.value).hostname; // Extract domain from URL
+    const logo = await fetchLogo(domain);
 
-    const result = await generateContent(content, 0.7, "gpt-4o-mini");
+    // Add the new competitor to the list
+    const newCompetitor = {
+      id: `new-${Date.now()}`,
+      name: domain, // Placeholder name; can be updated with another prompt
+      logo,
+    };
+    competitors.value.push(newCompetitor);
 
-    if (result.competitors) {
-      competitors.value = result.competitors;
-      // Delay setting `showCompetitors` to true for smooth animation
-      setTimeout(() => {
-        showCompetitors.value = true;
-      }, 100); // Optional delay for better animation
-    } else {
-      console.error("Unexpected response format:", result);
-      alert("Failed to retrieve competitors. Please try again.");
+    // Update the JSONB column in Supabase
+    const { data: user, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error(
+        "Error fetching user for updating competitors:",
+        userError?.message
+      );
+      return;
     }
+
+    const { error: updateError } = await supabase
+      .from("userstorage")
+      .update({ competitors: competitors.value })
+      .eq("id", user.id);
+
+    if (updateError) {
+      console.error(
+        "Error updating competitors in Supabase:",
+        updateError.message
+      );
+    }
+
+    closeAddModal();
   } catch (error) {
-    console.error("Error generating competitors:", error.message);
-    alert(`Error generating competitors: ${error.message}`);
-  } finally {
-    loading.value = false;
+    console.error("Error adding competitor:", error.message);
   }
 };
 
-// Function to generate the battlecard
-const generateBattlecard = async () => {
-  pageState.value = "battlecard";
-
-  const data = await fetchStrengthsAndWeaknesses(selectedCompetitor.value);
-  if (data) {
-    strengths.value = data.filter((item) => item.type === "strength");
-    weaknesses.value = data.filter((item) => item.type === "weakness");
-  }
+// Open and close modal functions
+const openAddModal = () => {
+  isModalOpen.value = true;
 };
 
-// Handle voting
-const handleVote = async (id, voteType) => {
-  const response = await updateVote(id, voteType);
-  if (response && voteType === "downvote") {
-    strengths.value = strengths.value.filter((item) => item.id !== id);
-    weaknesses.value = weaknesses.value.filter((item) => item.id !== id);
-  }
+const closeAddModal = () => {
+  isModalOpen.value = false;
+  newCompetitorUrl.value = ""; // Reset input
 };
 
-// Go back to input page
-const goBack = () => {
-  pageState.value = "input";
-};
-
-defineOptions({
-  name: "CreatePage",
+onMounted(async () => {
+  fetchOrQueryCompetitors();
+  await fetchCompanyName();
+  $q.loading.show();
+  console.log(supabase.auth.getUser());
 });
 </script>

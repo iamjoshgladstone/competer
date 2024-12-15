@@ -9,6 +9,8 @@
             /> </q-avatar
           >Competer
         </q-toolbar-title>
+        <!-- Display the company name -->
+        <div v-if="companyName">Hello, {{ companyName }}</div>
         <q-tabs align="right">
           <q-route-tab v-if="auth" to="/" exact label="Home" />
           <q-route-tab v-if="auth" to="/create" label="Create" />
@@ -25,13 +27,19 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { auth } from "src/stores/authStore";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { supabase } from "app/utils/supabase";
+import { auth, fetchCompanyName, companyName } from "src/stores/authStore";
 
 const router = useRouter();
 
+// Fetch the company name on mount
+onMounted(async () => {
+  await fetchCompanyName();
+});
+
+// Logout function
 const logoutUser = async () => {
   await supabase.auth.signOut();
   router.push("/login");
