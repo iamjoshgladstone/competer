@@ -105,92 +105,92 @@ const fetchLogo = async (domain) => {
   }
 };
 
-const fetchOrQueryCompetitors = async () => {
-  try {
-    $q.loading.show();
+// const fetchOrQueryCompetitors = async () => {
+//   try {
+//     $q.loading.show();
 
-    // Get the logged-in user
-    const { data: signUpData, error: userError } =
-      await supabase.auth.getUser();
-    if (userError || !signUpData?.user?.id) {
-      console.error(
-        "Error fetching user:",
-        userError?.message || "No user found."
-      );
-      $q.loading.hide();
-      return;
-    }
+//     // Get the logged-in user
+//     const { data: signUpData, error: userError } =
+//       await supabase.auth.getUser();
+//     if (userError || !signUpData?.user?.id) {
+//       console.error(
+//         "Error fetching user:",
+//         userError?.message || "No user found."
+//       );
+//       $q.loading.hide();
+//       return;
+//     }
 
-    // Check if the user has competitors stored in Supabase
-    const { data: userData, error: fetchError } = await supabase
-      .from("userstorage")
-      .select("competitors")
-      .eq("id", signUpData.user.id) // Match the `id` in `userstorage` with the authenticated user's `id`
-      .single();
+//     // Check if the user has competitors stored in Supabase
+//     const { data: userData, error: fetchError } = await supabase
+//       .from("userstorage")
+//       .select("competitors")
+//       .eq("id", signUpData.user.id) // Match the `id` in `userstorage` with the authenticated user's `id`
+//       .single();
 
-    if (fetchError && fetchError.code !== "PGRST116") {
-      console.error("Error querying competitors:", fetchError.message);
-      $q.loading.hide();
-      return;
-    }
+//     if (fetchError && fetchError.code !== "PGRST116") {
+//       console.error("Error querying competitors:", fetchError.message);
+//       $q.loading.hide();
+//       return;
+//     }
 
-    if (userData?.competitors) {
-      // If competitors exist in Supabase, use them
-      competitors.value = userData.competitors;
-    } else {
-      // Ensure `companyName` is fetched and use its value
-      await fetchCompanyName(); // Ensure companyName is loaded before using it
-      const companyNameValue = companyName.value || "your company"; // Fallback if companyName is empty
+//     if (userData?.competitors) {
+//       // If competitors exist in Supabase, use them
+//       competitors.value = userData.competitors;
+//     } else {
+//       // Ensure `companyName` is fetched and use its value
+//       await fetchCompanyName(); // Ensure companyName is loaded before using it
+//       const companyNameValue = companyName.value || "your company"; // Fallback if companyName is empty
 
-      // Query LLM to generate competitors
-      const prompt = `You are VP of Competitive Enablement for ${companyNameValue}. Generate a JSON list of competitors with fields: name, domain (e.g., domain.com). Just the JSON. Nothing else.`;
-      const model = "gpt-4o";
-      const messages = [{ role: "user", content: prompt }];
-      const temperature = 0.7;
+//       // Query LLM to generate competitors
+//       const prompt = `You are VP of Competitive Enablement for ${companyNameValue}. Generate a JSON list of competitors with fields: name, domain (e.g., domain.com). Just the JSON. Nothing else.`;
+//       const model = "gpt-4o";
+//       const messages = [{ role: "user", content: prompt }];
+//       const temperature = 0.7;
 
-      // Generate competitor list using the LLM
-      const response = await generateContentSpecificModel({
-        model,
-        messages,
-        temperature,
-      });
+//       // Generate competitor list using the LLM
+//       const response = await generateContentSpecificModel({
+//         model,
+//         messages,
+//         temperature,
+//       });
 
-      console.log("Generated Response from LLM:", response);
-      const parsedResponse = JSON.parse(response);
+//       console.log("Generated Response from LLM:", response);
+//       const parsedResponse = JSON.parse(response);
 
-      // Fetch logos for each competitor and prepare the competitors array
-      const competitorsWithLogos = [];
-      for (const competitor of parsedResponse) {
-        const logo = await fetchLogo(competitor.domain); // Fetch logo using domain
-        competitorsWithLogos.push({
-          id: uuidv4(), // Generate a unique UUID for the competitor
-          name: competitor.name,
-          domain: competitor.domain,
-          logo,
-        });
-      }
+//       // Fetch logos for each competitor and prepare the competitors array
+//       const competitorsWithLogos = [];
+//       for (const competitor of parsedResponse) {
+//         const logo = await fetchLogo(competitor.domain); // Fetch logo using domain
+//         competitorsWithLogos.push({
+//           id: uuidv4(), // Generate a unique UUID for the competitor
+//           name: competitor.name,
+//           domain: competitor.domain,
+//           logo,
+//         });
+//       }
 
-      // Save competitors to Supabase
-      const { error: updateError } = await supabase
-        .from("userstorage")
-        .update({ competitors: competitorsWithLogos })
-        .eq("id", signUpData.user.id); // Match the `id` in `userstorage` with the authenticated user's `id`
+//       // Save competitors to Supabase
+//       const { error: updateError } = await supabase
+//         .from("userstorage")
+//         .update({ competitors: competitorsWithLogos })
+//         .eq("id", signUpData.user.id); // Match the `id` in `userstorage` with the authenticated user's `id`
 
-      if (updateError) {
-        console.error(
-          "Error updating competitors in Supabase:",
-          updateError.message
-        );
-      }
+//       if (updateError) {
+//         console.error(
+//           "Error updating competitors in Supabase:",
+//           updateError.message
+//         );
+//       }
 
-      competitors.value = competitorsWithLogos;
-    }
-  } catch (error) {
-    console.error("Error fetching or querying competitors:", error.message);
-  } finally {
-    $q.loading.hide();
-  }
-};
+//       competitors.value = competitorsWithLogos;
+//     }
+//   } catch (error) {
+//     console.error("Error fetching or querying competitors:", error.message);
+//   } finally {
+//     $q.loading.hide();
+//   }
+// };
 
 // Function to add a new competitor
 const addCompetitor = async () => {
