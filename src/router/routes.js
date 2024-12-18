@@ -16,12 +16,17 @@ const routes = [
         beforeEnter: authGuard,
       },
       {
-        path: "/create",
-        component: () => import("src/pages/CreatePage.vue"),
+        path: "/selectcompetitors",
+        component: () => import("src/pages/SelectCompetitorPage.vue"),
         beforeEnter: authGuard,
       },
       {
-        path: "/create/:uuid", // Dynamic route for the competitor's UUID
+        path: "/generate",
+        component: () => import("src/pages/GeneratePage.vue"),
+        beforeEnter: authGuard,
+      },
+      {
+        path: "/generate/:uuid", // Dynamic route for the competitor's UUID
         component: () => import("src/pages/ChildBattlecardPage.vue"), // Create this page
         beforeEnter: authGuard,
       },
