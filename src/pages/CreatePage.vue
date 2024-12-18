@@ -1,47 +1,55 @@
 <template>
   <q-page style="background-color: #f3f3f3">
     <div class="q-pa-md">
-      <h4>Select a competitor to generate your battlecard</h4>
+      <h4>Select Competitors</h4>
 
       <!-- Competitors Grid -->
       <div class="fit row wrap justify-start items-start content-start">
-        <!-- Render competitors dynamically -->
+        <!-- Competitor Cards -->
         <q-card
           v-for="competitor in competitors"
           :key="competitor.id"
           class="q-pa-sm q-ma-sm"
+          :class="{
+            'selected-card': selectedCompetitors.includes(competitor.name),
+          }"
           style="cursor: pointer; height: 150px; width: 150px"
-          @click="generateBattlecard(competitor)"
+          @click="toggleCompetitorSelection(competitor)"
         >
           <div class="flex flex-center">
             <q-img
               :src="competitor.logo"
-              style="max-width: 75px; object-fit: contain !important"
+              style="max-width: 75px; object-fit: contain"
               ratio="1"
-              fit="contain"
               class="q-mb-sm q-pa-sm"
             />
           </div>
           <div class="text-center">{{ competitor.name }}</div>
         </q-card>
 
-        <!-- Add Competitor Card -->
+        <!-- Add New Competitor -->
         <q-card
           class="q-pa-sm q-ma-sm flex column"
           style="
             cursor: pointer;
             height: 150px;
             width: 150px;
-            align-items: center;
-            justify-content: center;
             border: dashed 2px #ccc;
           "
           @click="openAddModal"
         >
           <q-icon name="add" size="50px" color="primary" />
-          <div class="text-center">Generate for New Competitor</div>
+          <div class="text-center">Add New Competitor</div>
         </q-card>
       </div>
+
+      <!-- Store Competitors Button -->
+      <q-btn
+        label="Store Competitors"
+        color="primary"
+        class="q-mt-md"
+        @click="storeCompetitors"
+      />
 
       <!-- Add Competitor Modal -->
       <q-dialog v-model="isModalOpen">
@@ -49,11 +57,9 @@
           <q-card-section>
             <div class="text-h6">Add Competitor</div>
           </q-card-section>
-
           <q-card-section>
             <q-input v-model="newCompetitorUrl" label="Company URL" filled />
           </q-card-section>
-
           <q-card-actions align="right">
             <q-btn
               flat
@@ -76,183 +82,194 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { useChatCompletion } from "src/use/useChatCompletion";
-import { useQuasar } from "quasar";
-import axios from "axios";
 import { supabase } from "app/utils/supabase";
-import { v4 as uuidv4 } from "uuid"; // Import the UUID generation function
-import { fetchCompanyName, companyName } from "src/stores/authStore";
+import { v4 as uuidv4 } from "uuid";
+import { useQuasar } from "quasar";
+import { useChatCompletion } from "src/use/useChatCompletion";
 
-const competitors = ref([]); // List of competitors
-const isModalOpen = ref(false); // Modal state
-const newCompetitorUrl = ref(""); // User-entered competitor URL
+const competitors = ref([]); // Competitor list
+const selectedCompetitors = ref([]); // Selected competitors
+const companyUuid = ref(""); // User's company UUID
+const companyName = ref(""); // User's company name
+const isModalOpen = ref(false);
+const newCompetitorUrl = ref("");
 
 const $q = useQuasar();
+const { generateContent } = useChatCompletion();
 
-const { generateContentSpecificModel } = useChatCompletion(); // Chat Completion API
+// Step 1: Fetch the company_uuid from userstorage
+const fetchCompanyUuid = async () => {
+  const { data: user, error: userError } = await supabase.auth.getUser();
+  if (userError || !user?.user?.id) throw new Error("User not authenticated.");
 
-// Function to fetch the logo from a free API (Clearbit API in this example)
-const fetchLogo = async (domain) => {
+  const { data: userData, error: userStorageError } = await supabase
+    .from("userstorage")
+    .select("company_uuid")
+    .eq("user_id", user.user.id)
+    .single();
+
+  if (userStorageError || !userData?.company_uuid)
+    throw new Error("Failed to fetch company_uuid.");
+
+  companyUuid.value = userData.company_uuid;
+};
+
+// Step 2: Check for existing competitors in competitor_link
+const fetchOrGenerateCompetitors = async () => {
+  $q.loading.show();
+
   try {
-    const logoUrl = `https://logo.clearbit.com/${domain}`;
-    const response = await axios.get(logoUrl, { responseType: "blob" });
-    if (response.status === 200) {
-      return logoUrl; // Return the logo URL if valid
+    await fetchCompanyUuid();
+
+    // Check the competitor_link table
+    const { data: competitorLinks } = await supabase
+      .from("competitor_link")
+      .select("competitor_uuid")
+      .eq("company_uuid", companyUuid.value);
+
+    if (competitorLinks?.length > 0) {
+      // Fetch competitors from companies table
+      const competitorUuids = competitorLinks.map(
+        (link) => link.competitor_uuid
+      );
+      const { data: competitorsData } = await supabase
+        .from("companies")
+        .select("company_uuid, company_name, company_url")
+        .in("company_uuid", competitorUuids);
+
+      competitors.value = competitorsData.map((c) => ({
+        id: c.company_uuid,
+        name: c.company_name,
+        url: c.company_url,
+        logo: `https://logo.clearbit.com/${new URL(c.company_url).hostname}`,
+      }));
+    } else {
+      // Fetch company_name from companies table
+      const { data: companyData } = await supabase
+        .from("companies")
+        .select("company_name")
+        .eq("company_uuid", companyUuid.value)
+        .single();
+
+      companyName.value = companyData.company_name;
+
+      // Query LLM for competitors
+      const prompt = `Generate a JSON list of 5 competitors for ${companyName.value} with fields: name, domain. Just the JSON, nothing else.`;
+      const response = await generateContent(prompt);
+      const competitorList = JSON.parse(response);
+
+      competitors.value = competitorList.map((c) => ({
+        id: uuidv4(),
+        name: c.name,
+        url: `https://${c.domain}`,
+        logo: `https://logo.clearbit.com/${c.domain}`,
+      }));
     }
   } catch (error) {
-    console.error(`Failed to fetch logo for domain ${domain}:`, error.message);
-    return "https://via.placeholder.com/150"; // Placeholder if logo fetch fails
+    console.error("Error fetching competitors:", error.message);
+  } finally {
+    $q.loading.hide();
   }
 };
 
-// const fetchOrQueryCompetitors = async () => {
-//   try {
-//     $q.loading.show();
+// Step 3: Toggle competitor selection
+const toggleCompetitorSelection = (competitor) => {
+  const index = selectedCompetitors.value.findIndex(
+    (item) => item.company_uuid === competitor.id
+  );
 
-//     // Get the logged-in user
-//     const { data: signUpData, error: userError } =
-//       await supabase.auth.getUser();
-//     if (userError || !signUpData?.user?.id) {
-//       console.error(
-//         "Error fetching user:",
-//         userError?.message || "No user found."
-//       );
-//       $q.loading.hide();
-//       return;
-//     }
-
-//     // Check if the user has competitors stored in Supabase
-//     const { data: userData, error: fetchError } = await supabase
-//       .from("userstorage")
-//       .select("competitors")
-//       .eq("id", signUpData.user.id) // Match the `id` in `userstorage` with the authenticated user's `id`
-//       .single();
-
-//     if (fetchError && fetchError.code !== "PGRST116") {
-//       console.error("Error querying competitors:", fetchError.message);
-//       $q.loading.hide();
-//       return;
-//     }
-
-//     if (userData?.competitors) {
-//       // If competitors exist in Supabase, use them
-//       competitors.value = userData.competitors;
-//     } else {
-//       // Ensure `companyName` is fetched and use its value
-//       await fetchCompanyName(); // Ensure companyName is loaded before using it
-//       const companyNameValue = companyName.value || "your company"; // Fallback if companyName is empty
-
-//       // Query LLM to generate competitors
-//       const prompt = `You are VP of Competitive Enablement for ${companyNameValue}. Generate a JSON list of competitors with fields: name, domain (e.g., domain.com). Just the JSON. Nothing else.`;
-//       const model = "gpt-4o";
-//       const messages = [{ role: "user", content: prompt }];
-//       const temperature = 0.7;
-
-//       // Generate competitor list using the LLM
-//       const response = await generateContentSpecificModel({
-//         model,
-//         messages,
-//         temperature,
-//       });
-
-//       console.log("Generated Response from LLM:", response);
-//       const parsedResponse = JSON.parse(response);
-
-//       // Fetch logos for each competitor and prepare the competitors array
-//       const competitorsWithLogos = [];
-//       for (const competitor of parsedResponse) {
-//         const logo = await fetchLogo(competitor.domain); // Fetch logo using domain
-//         competitorsWithLogos.push({
-//           id: uuidv4(), // Generate a unique UUID for the competitor
-//           name: competitor.name,
-//           domain: competitor.domain,
-//           logo,
-//         });
-//       }
-
-//       // Save competitors to Supabase
-//       const { error: updateError } = await supabase
-//         .from("userstorage")
-//         .update({ competitors: competitorsWithLogos })
-//         .eq("id", signUpData.user.id); // Match the `id` in `userstorage` with the authenticated user's `id`
-
-//       if (updateError) {
-//         console.error(
-//           "Error updating competitors in Supabase:",
-//           updateError.message
-//         );
-//       }
-
-//       competitors.value = competitorsWithLogos;
-//     }
-//   } catch (error) {
-//     console.error("Error fetching or querying competitors:", error.message);
-//   } finally {
-//     $q.loading.hide();
-//   }
-// };
-
-// Function to add a new competitor
-const addCompetitor = async () => {
-  if (!newCompetitorUrl.value) {
-    alert("Please enter a valid company URL.");
-    return;
+  if (index === -1) {
+    // Add the competitor to the selected list
+    selectedCompetitors.value.push({
+      company_uuid: competitor.id || uuidv4(),
+      company_name: competitor.name,
+      company_url: competitor.url,
+    });
+  } else {
+    // Remove competitor from the selected list
+    selectedCompetitors.value.splice(index, 1);
   }
+  console.log(selectedCompetitors.value);
+};
 
+// Step 4: Add a new competitor manually
+const addCompetitor = () => {
   try {
-    const domain = new URL(newCompetitorUrl.value).hostname; // Extract domain from URL
-    const logo = await fetchLogo(domain);
-
-    // Add the new competitor to the list
+    const domain = new URL(newCompetitorUrl.value).hostname;
     const newCompetitor = {
-      id: `new-${Date.now()}`,
-      name: domain, // Placeholder name; can be updated with another prompt
-      logo,
+      id: uuidv4(),
+      name: domain,
+      url: `https://${domain}`,
+      logo: `https://logo.clearbit.com/${domain}`,
     };
+
     competitors.value.push(newCompetitor);
-
-    // Update the JSONB column in Supabase
-    const { data: user, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error(
-        "Error fetching user for updating competitors:",
-        userError?.message
-      );
-      return;
-    }
-
-    const { error: updateError } = await supabase
-      .from("userstorage")
-      .update({ competitors: competitors.value })
-      .eq("id", user.id);
-
-    if (updateError) {
-      console.error(
-        "Error updating competitors in Supabase:",
-        updateError.message
-      );
-    }
-
     closeAddModal();
   } catch (error) {
-    console.error("Error adding competitor:", error.message);
+    console.error("Invalid URL:", error.message);
+    $q.notify({ color: "negative", message: "Please enter a valid URL." });
   }
 };
 
-// Open and close modal functions
-const openAddModal = () => {
-  isModalOpen.value = true;
+// Step 5: Store competitors in companies and competitor_link tables
+const storeCompetitors = async () => {
+  $q.loading.show();
+  try {
+    for (const competitor of selectedCompetitors.value) {
+      const competitorUuid = competitor.company_uuid || uuidv4();
+
+      const payload = {
+        company_uuid: competitorUuid,
+        company_name: competitor.company_name,
+        company_url: competitor.company_url,
+      };
+
+      // Insert competitor into companies table
+      const { error: upsertError } = await supabase
+        .from("companies")
+        .upsert([payload], { onConflict: ["company_uuid"] });
+
+      if (upsertError) throw upsertError;
+
+      // Insert into competitor_link table
+      const { error: linkError } = await supabase
+        .from("competitor_link")
+        .insert([
+          {
+            company_uuid: companyUuid.value,
+            competitor_uuid: competitorUuid,
+          },
+        ]);
+
+      if (linkError) throw linkError;
+    }
+
+    $q.notify({
+      color: "positive",
+      message: "Competitors stored successfully!",
+    });
+  } catch (error) {
+    console.error("Error storing competitors:", error.message);
+    $q.notify({ color: "negative", message: "Failed to store competitors." });
+  } finally {
+    $q.loading.hide();
+  }
 };
 
+// Modal management
+const openAddModal = () => (isModalOpen.value = true);
 const closeAddModal = () => {
   isModalOpen.value = false;
-  newCompetitorUrl.value = ""; // Reset input
+  newCompetitorUrl.value = "";
 };
 
-onMounted(async () => {
-  fetchOrQueryCompetitors();
-  await fetchCompanyName();
-  $q.loading.show();
-  console.log(supabase.auth.getUser());
-});
+// On mounted
+onMounted(fetchOrGenerateCompetitors);
 </script>
+
+<style scoped>
+.selected-card {
+  border: 3px solid #1976d2; /* Blue border for selected cards */
+  border-radius: 8px; /* Optional rounded corners */
+}
+</style>

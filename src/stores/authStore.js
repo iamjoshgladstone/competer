@@ -16,7 +16,7 @@ export const fetchCompanyName = async () => {
       const { data, error } = await supabase
         .from("userstorage")
         .select("company_name")
-        .eq("email", user.email)
+        .eq("user_email", user.email)
         .single(); // Fetch a single row
 
       if (error) {
