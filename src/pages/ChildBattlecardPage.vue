@@ -1,115 +1,132 @@
 <template>
   <q-page>
     <div class="q-pa-xl">
-      <!-- Header with Competitor Name -->
-      <h4 class="q-mb-md">
-        Generate Content in Context of Competitor: {{ competitorName }}
-      </h4>
+      <!-- Flex Container for Side-by-Side Layout -->
+      <p class="text-bold">Competing against: {{ competitorName }}</p>
+      <div class="side-by-side flex row q-gutter-md">
+        <!-- Left Section: Prospect Details Input -->
+        <div class="prospect-details column shadow-13 q-pa-xl" style="flex: 1">
+          <p>Who is your prospect?</p>
+          <q-input
+            v-model="prospectName"
+            filled
+            label="Prospect Name"
+            class="q-mb-md"
+          />
+          <q-select
+            v-if="prospectSuggestions.length > 0"
+            v-model="prospectName"
+            :options="prospectSuggestions.map((item) => item.prospect_name)"
+            label="Select Prospect"
+            emit-value
+            map-options
+            class="q-mb-md"
+          />
+          <q-input
+            v-model="prospectUrl"
+            filled
+            label="Prospect Website URL"
+            class="q-mb-md"
+          />
 
-      <!-- Prospect Details Input -->
-      <q-input
-        v-model="prospectName"
-        filled
-        label="Prospect Name"
-        placeholder="e.g., ABC Corp"
-        class="q-mb-md"
-      />
-      <q-input
-        v-model="prospectUrl"
-        filled
-        label="Prospect Website URL"
-        placeholder="e.g., https://abc.com"
-        class="q-mb-md"
-      />
+          <!-- Submit Button -->
+          <q-btn
+            color="primary"
+            label="Generate Prospect Needs"
+            @click="fetchProspectNeeds"
+            :loading="loading"
+            class="q-mb-md"
+            v-if="!prospectNeeds.length > 0"
+          />
 
-      <!-- Submit Button -->
-      <q-btn
-        color="primary"
-        label="Generate Prospect Needs"
-        @click="fetchProspectNeeds"
-        :loading="loading"
-        class="q-mb-md"
-        v-if="!prospectNeeds.length > 0"
-      />
-
-      <!-- Error Message -->
-      <div v-if="errorMessage" class="text-negative q-mt-md">
-        {{ errorMessage }}
-      </div>
-
-      <!-- Prospect Needs Display -->
-      <div v-if="prospectNeeds.length > 0" class="q-mt-md">
-        <h6>Select Prospect Needs:</h6>
-        <div class="flex wrap q-gutter-md q-mt-md">
-          <!-- Existing prospect needs -->
-          <q-chip
-            v-for="need in prospectNeeds"
-            :key="need"
-            clickable
-            :color="isSelected(need) ? 'accent' : 'primary'"
-            text-color="white"
-            @click="toggleNeedSelection(need)"
-            class="position-relative"
+          <!-- No Needs Fetched -->
+          <div
+            v-else-if="!loading && prospectNeeds.length === 0"
+            class="q-mt-md"
           >
-            <!-- Chip Text -->
-            {{ need }}
+            <p>
+              No prospect needs generated yet. Enter details and click "Generate
+              Prospect Needs".
+            </p>
+          </div>
 
-            <!-- Delete Icon -->
-            <q-icon
-              name="cancel"
-              size="sm"
-              color="red"
-              class="delete-icon"
-              @click.stop="deleteNeed(need)"
-            />
-          </q-chip>
-
-          <!-- Add custom prospect need -->
-          <q-chip
-            clickable
-            color="grey-3"
-            text-color="black"
-            @click.stop
-            class="add-chip"
-          >
-            <q-input
-              v-model="newCustomNeed"
-              placeholder="+ Add Prospect Need"
-              dense
-              borderless
-              @keydown.enter="addCustomNeed"
-            />
-          </q-chip>
+          <!-- Error Message -->
+          <div v-if="errorMessage" class="text-negative q-mt-md">
+            {{ errorMessage }}
+          </div>
         </div>
-        <!-- Generate Content Button -->
-        <q-btn
-          color="secondary"
-          style="color: black"
-          label="Generate Compete Content"
-          @click="generateContent"
-          :loading="loading"
-          class="q-mb-md q-mt-lg"
-          v-if="prospectNeeds.length > 0"
-        />
-      </div>
 
-      <!-- No Needs Fetched -->
-      <div v-else-if="!loading && prospectNeeds.length === 0" class="q-mt-md">
-        <p>
-          No prospect needs generated yet. Enter details and click "Generate
-          Prospect Needs".
-        </p>
+        <!-- Right Section: Prospect Needs -->
+        <div class="prospect-needs column" style="flex: 1; padding-left: 16px">
+          <div v-if="prospectNeeds.length > 0" class="">
+            <p style="font-size: 15px; font-weight: 500">
+              What does this prospect care about? Click to select their needs.
+            </p>
+            <div class="flex wrap q-gutter-md q-mt-md">
+              <!-- Existing prospect needs -->
+              <q-chip
+                v-for="need in prospectNeeds"
+                :key="need"
+                clickable
+                :color="isSelected(need) ? 'accent' : 'primary'"
+                text-color="white"
+                @click="toggleNeedSelection(need)"
+                class="position-relative"
+              >
+                <!-- Chip Text -->
+                {{ need }}
+
+                <!-- Delete Icon -->
+                <q-icon
+                  name="cancel"
+                  size="sm"
+                  color="red"
+                  class="delete-icon"
+                  @click.stop="deleteNeed(need)"
+                />
+              </q-chip>
+
+              <!-- Add custom prospect need -->
+              <q-chip
+                clickable
+                color="grey-3"
+                text-color="black"
+                @click.stop
+                class="add-chip"
+              >
+                <q-input
+                  v-model="newCustomNeed"
+                  placeholder="+ Add Prospect Need"
+                  dense
+                  borderless
+                  @keydown.enter="addCustomNeed"
+                />
+              </q-chip>
+              <!-- Generate Content Button -->
+            </div>
+            <q-btn
+              color="secondary"
+              style="color: black"
+              label="Generate Compete Content"
+              @click="generateContent"
+              :loading="loading"
+              class="q-mb-md q-mt-lg"
+              v-if="prospectNeeds.length > 0"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </q-page>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
 import { supabase } from "app/utils/supabase";
 import { useChatCompletion } from "src/use/useChatCompletion";
-import { companyName } from "src/stores/authStore";
+import { companyName, companyUuid } from "src/stores/authStore";
+import { debounce } from "lodash"; // Use lodash for debounce
 
 const route = useRoute();
 const { generateContentSpecificModel, loading } = useChatCompletion();
@@ -121,6 +138,36 @@ const prospectNeeds = ref([]); // Array of needs from LLM
 const selectedNeeds = ref([]); // Tracks selected needs
 const errorMessage = ref(""); // Error handling
 const newCustomNeed = ref(""); // Holds the value of manually added need
+
+// Provide fuzzy search as looking for prospect
+const prospectSuggestions = ref([]);
+
+const fetchProspectSuggestions = debounce(async (query) => {
+  if (!query) {
+    prospectSuggestions.value = [];
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("prospects")
+      .select("prospect_name, prospect_needs")
+      .ilike("prospect_name", `%${query}%`);
+
+    if (error) {
+      throw new Error("Failed to fetch prospect suggestions.");
+    }
+
+    prospectSuggestions.value = data;
+  } catch (error) {
+    console.error("Error fetching prospect suggestions:", error.message);
+    errorMessage.value = "Failed to fetch suggestions.";
+  }
+}, 300);
+
+watch(prospectName, (newValue) => {
+  fetchProspectSuggestions(newValue);
+});
 
 // Fetch competitor UUID from dynamic route
 const competitorUuid = route.params.uuid;
@@ -146,10 +193,11 @@ const fetchCompetitorName = async () => {
   }
 };
 
-// Step 2: Query the LLM to generate needs
+// Fetch Prospect Needs or Generate
+
 const fetchProspectNeeds = async () => {
-  if (!prospectName.value || !prospectUrl.value) {
-    errorMessage.value = "Please enter both Prospect Name and URL.";
+  if (!prospectName.value) {
+    errorMessage.value = "Please enter a Prospect Name.";
     return;
   }
 
@@ -157,19 +205,33 @@ const fetchProspectNeeds = async () => {
   prospectNeeds.value = [];
   selectedNeeds.value = [];
 
-  const content = `Provide JSON only. No preamble. You are a VP of Competitive Enablement for ${companyName.value}. Generate a JSON array of business needs that ${prospectName.value} would have for why they are shopping for ${companyName.value}'s product. Use research from around the web - why are they shopping for this product now? Provide each need as a simple string. Max 8 words or less. Nothing else. Example: [
-    "Track competitor website updates",
-    "Gather and analyze market insights across 100+ types of market information",
-    "Automate battlecard creation and maintenance with AI-powered tools",
-    "Enhance sales intelligence with timely and relevant competitor data",
-    "Integrate competitive intelligence with existing CRM systems like Salesforce",
-    "Streamline competitive landscape data collection and analysis",
-    "Monitor competitor social media and industry trends efficiently",
-    "Create detailed, up-to-date battlecards for strategic planning and decision-making",
-    "Identify emerging competitors and track their activities proactively",
-    "Facilitate cross-functional collaboration on competitive intelligence efforts"
+  try {
+    // Check if prospect is already in the database
+    const { data, error } = await supabase
+      .from("prospects")
+      .select("prospect_needs")
+      .ilike("prospect_name", `%${prospectName.value}%`)
+      .single();
+
+    if (data && data.prospect_needs) {
+      // Use existing needs from the database
+      prospectNeeds.value = data.prospect_needs;
+    } else {
+      // Query LLM if no database match
+      await queryLLMForNeeds();
+    }
+  } catch (error) {
+    console.error("Error fetching prospect needs:", error.message);
+    errorMessage.value = "Failed to fetch prospect needs. Please try again.";
+  }
+};
+
+const queryLLMForNeeds = async () => {
+  const content = `Provide JSON only. No preamble. You are a VP of Competitive Enablement for ${companyName.value}. Generate a JSON array of business needs that ${prospectName.value} would have in the context of ${companyName.value}'s product. Use research from around the web - why are they shopping for this product now? Are they price sensitive because of recent layoffs? Are they losing business?  Provide each need as a simple string. Max 8 words or less. Nothing else. Example: [
+    "Pricing",
+    "Automate battlecard creation",
+    "Elevate win rate",
 ]`;
-  // const content = `Provide JSON only. Nothing You are a content strategist. Based on a company named "${prospectName.value}" with the website "${prospectUrl.value}", generate a JSON array of 10 potential business needs in the context of the competitor "${competitorName.value}". Provide each need as a simple string.`;
 
   try {
     const response = await generateContentSpecificModel({
@@ -178,17 +240,14 @@ const fetchProspectNeeds = async () => {
       temperature: 0.7,
     });
 
-    // Parse response as JSON
     const parsedNeeds = JSON.parse(response);
-    console.log(parsedNeeds.value);
-    console.log(parsedNeeds);
     if (Array.isArray(parsedNeeds)) {
       prospectNeeds.value = parsedNeeds;
     } else {
       throw new Error("Invalid response format.");
     }
   } catch (error) {
-    console.error("Error fetching prospect needs:", error.message);
+    console.error("Error querying LLM:", error.message);
     errorMessage.value = "Failed to generate prospect needs. Please try again.";
   }
 };
@@ -222,14 +281,42 @@ const isSelected = (need) => selectedNeeds.value.includes(need);
 
 // Step 7: Generate Content
 
-const generateContent = () => {
-  console.log(selectedNeeds.value);
+const generateContent = async () => {
+  try {
+    // Retrieve the current user's UUID and company UUID
+    const userUuid = (await supabase.auth.getUser()).data.user.id;
+
+    // Prepare data to insert into the database
+    const prospectData = {
+      user_uuid: userUuid,
+      company_uuid: companyUuid,
+      prospect_name: prospectName.value,
+      prospect_url: prospectUrl.value,
+      prospect_needs:
+        selectedNeeds.value.length > 0
+          ? JSON.stringify(selectedNeeds.value)
+          : null,
+    };
+
+    // Insert the data into the `prospects` table
+    const { error } = await supabase.from("prospects").insert([prospectData]);
+
+    if (error) {
+      throw new Error("Failed to save prospect details.");
+    }
+
+    console.log("Prospect data saved successfully:", prospectData);
+  } catch (error) {
+    console.error("Error saving prospect data:", error.message);
+    errorMessage.value = "Failed to save prospect data. Please try again.";
+  }
 };
 
 // OnMounted Lifecycle
 onMounted(async () => {
   console.log("Competitor UUID:", competitorUuid);
   await fetchCompetitorName();
+  console.log((await supabase.auth.getUser()).data.user.id);
 });
 </script>
 
