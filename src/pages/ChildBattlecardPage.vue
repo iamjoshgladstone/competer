@@ -14,12 +14,13 @@
             class="q-mb-md"
           />
           <q-select
-            v-if="prospectSuggestions.length > 0"
+            v-if="prospectSuggestions.length > 0 && prospectNeeds.length === 0"
             v-model="prospectName"
             :options="prospectSuggestions.map((item) => item.prospect_name)"
             label="Select Prospect"
             emit-value
             map-options
+            @click="fetchProspectNeeds"
             class="q-mb-md"
           />
           <q-input
@@ -210,13 +211,14 @@ const fetchProspectNeeds = async () => {
     // Check if prospect is already in the database
     const { data, error } = await supabase
       .from("prospects")
-      .select("prospect_needs")
+      .select("prospect_needs, prospect_url")
       .ilike("prospect_name", `%${prospectName.value}%`)
       .single();
 
     if (data && data.prospect_needs) {
       // Use existing needs from the database
       prospectNeeds.value = data.prospect_needs;
+      prospectUrl.value = data.prospect_url;
     } else {
       // Query LLM if no database match
       await queryLLMForNeeds();
