@@ -138,6 +138,7 @@ const prospectNeeds = ref([]); // Array of needs from LLM
 const selectedNeeds = ref([]); // Tracks selected needs
 const errorMessage = ref(""); // Error handling
 const newCustomNeed = ref(""); // Holds the value of manually added need
+const prospectData = ref([]);
 
 // Provide fuzzy search as looking for prospect
 const prospectSuggestions = ref([]);
@@ -289,23 +290,31 @@ const generateContent = async () => {
     // Prepare data to insert into the database
     const prospectData = {
       user_uuid: userUuid,
-      company_uuid: companyUuid,
-      prospect_name: prospectName.value,
-      prospect_url: prospectUrl.value,
+      company_uuid: companyUuid.value,
+      prospect_name: prospectName.value.trim(),
+      prospect_url: prospectUrl.value.trim(),
       prospect_needs:
-        selectedNeeds.value.length > 0
-          ? JSON.stringify(selectedNeeds.value)
-          : null,
+        selectedNeeds.value.length > 0 ? selectedNeeds.value : null, // Pass array directly
     };
 
+    console.log("Inserting Prospect Data:", prospectData);
+
     // Insert the data into the `prospects` table
-    const { error } = await supabase.from("prospects").insert([prospectData]);
+    const { data, error } = await supabase
+      .from("prospects")
+      .insert([prospectData]);
 
     if (error) {
+      console.error(
+        "Supabase Insert Error:",
+        error.message,
+        error.details,
+        error.hint
+      );
       throw new Error("Failed to save prospect details.");
     }
 
-    console.log("Prospect data saved successfully:", prospectData);
+    console.log("Prospect data saved successfully:", data);
   } catch (error) {
     console.error("Error saving prospect data:", error.message);
     errorMessage.value = "Failed to save prospect data. Please try again.";
