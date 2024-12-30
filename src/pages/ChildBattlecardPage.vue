@@ -119,7 +119,7 @@
 <script setup>
 import { ref, onMounted, watch } from "vue";
 import { useRoute } from "vue-router";
-import { supabase } from "app/utils/supabase";
+import { supabase } from "src/utils/supabase";
 import { useChatCompletion } from "src/use/useChatCompletion";
 import { companyName, companyUuid } from "src/stores/authStore";
 import { debounce } from "lodash"; // Use lodash for debounce

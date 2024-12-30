@@ -84,7 +84,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import { supabase } from "app/utils/supabase";
+import { supabase } from "src/utils/supabase";
 import { v4 as uuidv4 } from "uuid";
 import { useQuasar } from "quasar";
 import { useChatCompletion } from "src/use/useChatCompletion";

@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { supabase } from "app/utils/supabase.js";
+import { supabase } from "src/utils/supabase.js";
 
 export const useTodoStore = defineStore("todoStore", {
   state: () => ({

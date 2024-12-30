@@ -83,7 +83,7 @@
 
 <script setup>
 import { ref } from "vue";
-import { supabase } from "app/utils/supabase";
+import { supabase } from "src/utils/supabase";
 import { v4 as uuidv4 } from "uuid"; // Import UUID generator
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";

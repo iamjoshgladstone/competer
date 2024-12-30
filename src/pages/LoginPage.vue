@@ -67,7 +67,7 @@
 <script setup>
 import { useQuasar } from "quasar";
 import { ref } from "vue";
-import { supabase } from "app/utils/supabase";
+import { supabase } from "src/utils/supabase";
 import { useRouter } from "vue-router";
 
 const $q = useQuasar();

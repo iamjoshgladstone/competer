@@ -79,7 +79,7 @@ import { ref, onMounted } from "vue";
 import { useChatCompletion } from "src/use/useChatCompletion";
 import { useQuasar } from "quasar";
 import axios from "axios";
-import { supabase } from "app/utils/supabase";
+import { supabase } from "src/utils/supabase";
 import { v4 as uuidv4 } from "uuid"; // Import the UUID generation function
 import { fetchCompanyName, companyName } from "src/stores/authStore";
 

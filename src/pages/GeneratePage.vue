@@ -83,7 +83,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { supabase } from "app/utils/supabase";
+import { supabase } from "src/utils/supabase";
 import { useQuasar } from "quasar";
 import { v4 as uuidv4 } from "uuid";
 

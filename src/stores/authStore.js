@@ -1,79 +1,128 @@
 import { ref } from "vue";
-import { supabase } from "app/utils/supabase";
+import { defineStore } from "pinia";
+import { supabase } from "../utils/supabase";
+import { isCacheValid, fetchWithRetry } from "../utils/cacheUtils";
 
-export const auth = ref(false); // Holds the authentication state
-export const companyName = ref(null); // Holds the company name
-export const companyUuid = ref(null); // Holds the company UUID
-export const companyHasCompetitors = ref(false); // Tracks if company has competitors
+// Reactive refs for auth state
 export const userEmail = ref(null);
+export const companyName = ref(null);
+export const companyUuid = ref(null);
+export const companyHasCompetitors = ref(false);
 
-// Fetch company name and UUID
-export const fetchCompanyDetails = async () => {
-  try {
-    // Get the currently logged-in user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+// Cache duration for company details (30 minutes)
+const COMPANY_CACHE_DURATION = 30 * 60 * 1000;
 
-    if (user) {
-      // Fetch the company name and UUID from the userstorage table using the user's email
-      userEmail.value = user.email;
+export const useAuthStore = defineStore("auth", {
+  state: () => ({
+    user: null,
+    companyDetails: null,
+    lastCompanyFetch: null,
+    loading: false,
+    error: null,
+  }),
 
-      const { data, error } = await supabase
-        .from("userstorage")
-        .select("company_name, company_uuid")
-        .eq("user_email", user.email)
-        .single();
+  getters: {
+    isAuthenticated: (state) => !!state.user,
+    hasCompanyDetails: (state) => !!state.companyDetails,
+  },
 
-      if (error) {
-        console.error("Error fetching company details:", error.message);
-        companyName.value = null;
-        companyUuid.value = null;
-        return null;
+  actions: {
+    async initialize() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        this.user = user;
+        if (user) {
+          await this.fetchCompanyDetails();
+        }
+      } catch (error) {
+        console.error("Error initializing auth store:", error);
+        this.error = error.message;
+      }
+    },
+
+    async fetchCompanyDetails() {
+      // Check cache validity
+      if (
+        this.companyDetails &&
+        isCacheValid(this.lastCompanyFetch, COMPANY_CACHE_DURATION)
+      ) {
+        return { data: this.companyDetails, error: null };
       }
 
-      // Set company details to refs
-      companyName.value = data?.company_name || "Unknown Company";
-      companyUuid.value = data?.company_uuid || null;
+      try {
+        this.loading = true;
+        const { data, error } = await fetchWithRetry(async () => {
+          return await supabase
+            .from("userstorage")
+            .select("company_name, company_uuid")
+            .eq("user_email", this.user.email)
+            .single();
+        });
 
-      // Check for competitors
-      await checkCompanyCompetitors();
-      return { companyName: companyName.value, companyUuid: companyUuid.value };
-    } else {
-      // If no user is logged in
+        if (error) throw error;
+
+        // Update state and cache
+        this.companyDetails = data;
+        this.lastCompanyFetch = Date.now();
+
+        // Update reactive refs
+        userEmail.value = this.user.email;
+        companyName.value = data.company_name;
+        companyUuid.value = data.company_uuid;
+
+        await this.checkCompanyCompetitors();
+
+        return { data, error: null };
+      } catch (error) {
+        console.error("Error fetching company details:", error);
+        return { data: null, error };
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async checkCompanyCompetitors() {
+      if (!companyUuid.value) return;
+
+      try {
+        const { data, error } = await fetchWithRetry(async () => {
+          return await supabase
+            .from("competitor_link")
+            .select("competitor_uuid")
+            .eq("company_uuid", companyUuid.value);
+        });
+
+        if (error) throw error;
+
+        companyHasCompetitors.value = data?.length > 0;
+      } catch (error) {
+        console.error("Error checking company competitors:", error);
+        companyHasCompetitors.value = false;
+      }
+    },
+
+    async clearAuth() {
+      // Clear all auth state
+      this.user = null;
+      this.companyDetails = null;
+      this.lastCompanyFetch = null;
+      userEmail.value = null;
       companyName.value = null;
       companyUuid.value = null;
       companyHasCompetitors.value = false;
-      return null;
-    }
-  } catch (error) {
-    console.error("Error fetching company details:", error.message);
-    companyName.value = null;
-    companyUuid.value = null;
-    companyHasCompetitors.value = false;
-    return null;
+    },
+  },
+});
+
+// Set up auth state change listener
+supabase.auth.onAuthStateChange((event, session) => {
+  const store = useAuthStore();
+  if (event === "SIGNED_IN") {
+    store.user = session?.user ?? null;
+    store.fetchCompanyDetails();
+  } else if (event === "SIGNED_OUT") {
+    store.clearAuth();
   }
-};
-
-// Check if the company has competitors
-export const checkCompanyCompetitors = async () => {
-  if (!companyUuid.value) return;
-
-  try {
-    const { data, error } = await supabase
-      .from("competitor_link")
-      .select("competitor_uuid")
-      .eq("company_uuid", companyUuid.value);
-
-    if (error) {
-      console.error("Error checking company competitors:", error.message);
-      companyHasCompetitors.value = false;
-      return;
-    }
-
-    companyHasCompetitors.value = data?.length > 0; // Set to true if competitors exist
-  } catch (error) {
-    console.error("Error checking company competitors:", error.message);
-    companyHasCompetitors.value = false;
-  }
-};
+});

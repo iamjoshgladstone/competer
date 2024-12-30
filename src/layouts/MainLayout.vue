@@ -16,17 +16,22 @@
           active-bg-color="accent"
           align="right"
         >
-          <q-route-tab v-if="auth" to="/" label="Home" />
+          <q-route-tab v-if="authStore.user" to="/" label="Home" />
+          <q-route-tab v-if="authStore.user" to="/generate" label="Generate" />
 
           <!-- Dynamic route for the Generate button -->
           <q-route-tab
-            v-if="auth && generateRoute"
+            v-if="authStore.user && generateRoute"
             :to="generateRoute"
             label="Generate"
           />
 
-          <q-route-tab v-if="!auth" to="/login" label="Login" />
-          <q-route-tab v-if="auth" label="Logout" @click="logoutUser" />
+          <q-route-tab v-if="!authStore.user" to="/login" label="Login" />
+          <q-route-tab
+            v-if="authStore.user"
+            label="Logout"
+            @click="logoutUser"
+          />
         </q-tabs>
 
         <q-btn flat round icon="menu" @click="toggleDrawer" aria-label="Menu" />
@@ -84,18 +89,18 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { supabase } from "app/utils/supabase";
-import {
-  auth,
-  fetchCompanyDetails,
-  companyName,
-  companyHasCompetitors,
-  userEmail,
-} from "src/stores/authStore";
+import { supabase } from "../utils/supabase";
+import { useAuthStore } from "../stores/authStore";
+import { storeToRefs } from "pinia";
 
 const router = useRouter();
 const generateRoute = ref(null); // Holds the dynamic route
 const isDrawerOpen = ref(false); // Drawer state
+const authStore = useAuthStore();
+
+// Use storeToRefs to maintain reactivity
+const { userEmail, companyName, companyHasCompetitors } =
+  storeToRefs(authStore);
 
 // Toggle the drawer
 const toggleDrawer = () => {
@@ -104,28 +109,32 @@ const toggleDrawer = () => {
 
 // Navigate to Settings page
 const goToSettings = () => {
-  toggleDrawer();
   router.push("/settings");
+  isDrawerOpen.value = false;
 };
 
 // Logout function
 const logoutUser = async () => {
-  await supabase.auth.signOut();
-  router.push("/login");
-  auth.value = false;
+  try {
+    await supabase.auth.signOut();
+    authStore.clearAuth();
+    router.push("/login");
+    isDrawerOpen.value = false;
+  } catch (error) {
+    console.error("Error logging out:", error);
+  }
 };
 
 // Fetch company details and dynamically set the route
 onMounted(async () => {
   try {
-    await fetchCompanyDetails();
-
-    // Determine the correct route dynamically
+    await authStore.fetchCompanyDetails();
+    // Set the generate route based on whether the company has competitors
     generateRoute.value = companyHasCompetitors.value
       ? "/generate"
-      : "/selectcompetitors";
+      : "/select-competitor";
   } catch (error) {
-    console.error("Error fetching company details:", error.message);
+    console.error("Error in onMounted:", error);
   }
 });
 </script>

@@ -1,97 +1,191 @@
+import { ref } from "vue";
 import { defineStore } from "pinia";
-import { supabase } from "app/utils/supabase";
+import { supabase } from "../utils/supabase";
+import {
+  CACHE_DURATION,
+  isCacheValid,
+  fetchWithRetry,
+} from "../utils/cacheUtils";
 
-export const useCompetitiveStore = defineStore("competitiveStore", {
+export const useCompetitiveStore = defineStore("competitive", {
   state: () => ({
-    strengthsAndWeaknesses: [], // Holds fetched strengths and weaknesses
+    strengthsAndWeaknesses: [],
+    lastFetchTimestamp: null,
+    subscriptions: {},
   }),
 
   actions: {
-    // 1. Fetch strengths and weaknesses for a specific company
+    // Initialize real-time subscriptions
+    initializeSubscriptions() {
+      this.subscriptions.strengthsWeaknesses = supabase
+        .channel("strengths_weaknesses_changes")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "battlecards" },
+          (payload) => {
+            this.handleRealtimeUpdate(payload);
+          }
+        )
+        .subscribe();
+    },
+
+    // Handle real-time updates
+    handleRealtimeUpdate(payload) {
+      const { eventType, new: newRecord, old: oldRecord } = payload;
+
+      switch (eventType) {
+        case "INSERT":
+          this.strengthsAndWeaknesses.push(newRecord);
+          break;
+        case "DELETE":
+          this.strengthsAndWeaknesses = this.strengthsAndWeaknesses.filter(
+            (item) => item.id !== oldRecord.id
+          );
+          break;
+        case "UPDATE":
+          this.strengthsAndWeaknesses = this.strengthsAndWeaknesses.map(
+            (item) => (item.id === newRecord.id ? newRecord : item)
+          );
+          break;
+      }
+    },
+
+    // Fetch strengths and weaknesses with caching
     async fetchStrengthsAndWeaknesses(companyName) {
       try {
-        const { data, error } = await supabase
-          .from("battlecards")
-          .select("id, company_name, type, content, upvote, downvote")
-          .eq("company_name", companyName.toLowerCase()); // Filter by company name
-
-        if (error) {
-          console.error(
-            "Error fetching strengths and weaknesses:",
-            error.message
-          );
-          return { error };
+        // Check cache validity
+        if (isCacheValid(this.lastFetchTimestamp)) {
+          return {
+            data: this.strengthsAndWeaknesses.filter(
+              (item) => item.company_name === companyName
+            ),
+            error: null,
+          };
         }
 
-        this.strengthsAndWeaknesses = data; // Update state with the fetched data
-        return { data };
-      } catch (err) {
-        console.error(
-          "Unexpected error fetching strengths and weaknesses:",
-          err
-        );
-        return { error: err };
+        const { data, error } = await fetchWithRetry(async () => {
+          return await supabase
+            .from("battlecards")
+            .select("id, company_name, type, content, upvote, downvote")
+            .eq("company_name", companyName);
+        });
+
+        if (error) throw error;
+
+        // Update cache
+        this.strengthsAndWeaknesses = data;
+        this.lastFetchTimestamp = Date.now();
+
+        return { data, error: null };
+      } catch (error) {
+        console.error("Error in fetchStrengthsAndWeaknesses:", error);
+        return { data: null, error };
       }
     },
 
-    // 2. Insert a new strength or weakness into the database
+    // Add strength or weakness with optimistic update
     async addStrengthOrWeakness(companyName, type, content) {
+      // Create new record
+      const newRecord = {
+        id: Date.now(), // Temporary ID
+        company_name: companyName,
+        type,
+        content,
+        upvote: 0,
+        downvote: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      // Optimistic update
+      this.strengthsAndWeaknesses.push(newRecord);
+
       try {
-        const newEntry = {
-          company_name: companyName,
-          type, // "strength" or "weakness"
-          content,
-          upvote: 0, // Default value
-          downvote: 0, // Default value
-        };
+        const { data, error } = await fetchWithRetry(async () => {
+          return await supabase
+            .from("battlecards")
+            .insert([
+              {
+                company_name: companyName,
+                type,
+                content,
+                upvote: 0,
+                downvote: 0,
+              },
+            ])
+            .select()
+            .single();
+        });
 
-        const { data, error } = await supabase
-          .from("battlecards")
-          .insert(newEntry)
-          .select(); // Return the inserted row
+        if (error) throw error;
 
-        if (error) {
-          console.error("Error adding strength or weakness:", error.message);
-          return { error };
-        }
+        // Update with actual server data
+        this.strengthsAndWeaknesses = this.strengthsAndWeaknesses.map((item) =>
+          item.id === newRecord.id ? data : item
+        );
 
-        console.log("Strength/Weakness added to Supabase:", data);
-        if (data && data.length > 0) {
-          this.strengthsAndWeaknesses.push(...data); // Optimistic update
-        }
-        return { data };
-      } catch (err) {
-        console.error("Unexpected error adding strength or weakness:", err);
-        return { error: err };
+        return { data, error: null };
+      } catch (error) {
+        // Revert optimistic update
+        this.strengthsAndWeaknesses = this.strengthsAndWeaknesses.filter(
+          (item) => item.id !== newRecord.id
+        );
+        console.error("Error in addStrengthOrWeakness:", error);
+        return { data: null, error };
       }
     },
 
-    // 3. Update the upvote or downvote count for a specific row
+    // Update vote with optimistic update
     async updateVote(id, voteType) {
-      try {
-        // Increment either upvote or downvote
-        const columnToUpdate = voteType === "upvote" ? "upvote" : "downvote";
+      // Store original state
+      const originalItem = this.strengthsAndWeaknesses.find(
+        (item) => item.id === id
+      );
+      const originalVotes = originalItem ? { ...originalItem } : null;
 
-        const { data, error } = await supabase
-          .from("battlecards")
-          .update({ [columnToUpdate]: supabase.raw(`${columnToUpdate} + 1`) }) // Increment the value
-          .eq("id", id) // Match the row by ID
-          .select(); // Return the updated row
-
-        if (error) {
-          console.error(
-            `Error updating ${voteType} for id ${id}:`,
-            error.message
-          );
-          return { error };
+      // Optimistic update
+      this.strengthsAndWeaknesses = this.strengthsAndWeaknesses.map((item) => {
+        if (item.id === id) {
+          return {
+            ...item,
+            [voteType]: (item[voteType] || 0) + 1,
+          };
         }
+        return item;
+      });
 
-        console.log(`Successfully updated ${voteType} for id ${id}:`, data);
-        return { data };
-      } catch (err) {
-        console.error("Unexpected error updating vote:", err);
-        return { error: err };
+      try {
+        const { data, error } = await fetchWithRetry(async () => {
+          return await supabase
+            .from("battlecards")
+            .update({ [voteType]: supabase.raw(`${voteType} + 1`) })
+            .eq("id", id)
+            .select()
+            .single();
+        });
+
+        if (error) throw error;
+
+        return { data, error: null };
+      } catch (error) {
+        // Revert optimistic update
+        if (originalVotes) {
+          this.strengthsAndWeaknesses = this.strengthsAndWeaknesses.map(
+            (item) => (item.id === id ? originalVotes : item)
+          );
+        }
+        console.error("Error in updateVote:", error);
+        return { data: null, error };
       }
+    },
+
+    // Cleanup subscriptions
+    cleanup() {
+      Object.values(this.subscriptions).forEach((subscription) => {
+        if (subscription && subscription.unsubscribe) {
+          subscription.unsubscribe();
+        }
+      });
+      this.subscriptions = {};
     },
   },
 });

@@ -1,16 +1,18 @@
-import { supabase } from "app/utils/supabase";
-import { auth } from "src/stores/authStore";
+import { supabase } from "../utils/supabase";
+import { useAuthStore } from "../stores/authStore";
 
 export const authGuard = async (to, from, next) => {
+  const authStore = useAuthStore();
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (session) {
-    auth.value = true; // Set auth to true if session exists
-    next(); // Allow access
+    authStore.user = session.user;
+    await authStore.fetchCompanyDetails();
+    next();
   } else {
-    auth.value = false; // Set auth to false if no session exists
-    next("/login"); // Redirect to login
+    authStore.clearAuth();
+    next("/login");
   }
 };

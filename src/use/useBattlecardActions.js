@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import { useCompetitiveStore } from "src/stores/competitiveStore";
-import { supabase } from "app/utils/supabase";
+import { supabase } from "src/utils/supabase";
 
 export function useBattlecardActions() {
   const store = useCompetitiveStore();
