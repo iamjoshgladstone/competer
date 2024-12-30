@@ -8,12 +8,15 @@
           </q-avatar>
           Competer
         </q-toolbar-title>
-
         <!-- Display the company name -->
         <div v-if="companyName" class="q-mr-lg">Hello, {{ companyName }}</div>
-
-        <q-tabs align="right">
-          <q-route-tab v-if="auth" to="/" exact label="Home" />
+        <q-separator vertical style="background-color: white"></q-separator>
+        <q-tabs
+          class="no-underline-tabs"
+          active-bg-color="accent"
+          align="right"
+        >
+          <q-route-tab v-if="auth" to="/" label="Home" />
 
           <!-- Dynamic route for the Generate button -->
           <q-route-tab
@@ -25,8 +28,50 @@
           <q-route-tab v-if="!auth" to="/login" label="Login" />
           <q-route-tab v-if="auth" label="Logout" @click="logoutUser" />
         </q-tabs>
+
+        <q-btn flat round icon="menu" @click="toggleDrawer" aria-label="Menu" />
       </q-toolbar>
     </q-header>
+
+    <q-drawer
+      v-model="isDrawerOpen"
+      side="right"
+      overlay
+      behavior="mobile"
+      width="250"
+    >
+      <q-list>
+        <!-- User Email -->
+        <q-item>
+          <q-item-section avatar>
+            <q-avatar>
+              <img src="https://cdn.quasar.dev/img/avatar.png" />
+            </q-avatar>
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>{{ userEmail }}</q-item-label>
+          </q-item-section>
+        </q-item>
+
+        <q-separator />
+
+        <!-- Settings Option -->
+        <q-item clickable @click="goToSettings">
+          <q-item-section>
+            <q-icon name="settings" />
+            Settings
+          </q-item-section>
+        </q-item>
+
+        <!-- Logout Option -->
+        <q-item clickable @click="logoutUser">
+          <q-item-section>
+            <q-icon name="logout" />
+            Log Out
+          </q-item-section>
+        </q-item>
+      </q-list>
+    </q-drawer>
 
     <q-page-container>
       <router-view />
@@ -45,10 +90,30 @@ import {
   fetchCompanyDetails,
   companyName,
   companyHasCompetitors,
+  userEmail,
 } from "src/stores/authStore";
 
 const router = useRouter();
 const generateRoute = ref(null); // Holds the dynamic route
+const isDrawerOpen = ref(false); // Drawer state
+
+// Toggle the drawer
+const toggleDrawer = () => {
+  isDrawerOpen.value = !isDrawerOpen.value;
+};
+
+// Navigate to Settings page
+const goToSettings = () => {
+  toggleDrawer();
+  router.push("/settings");
+};
+
+// Logout function
+const logoutUser = async () => {
+  await supabase.auth.signOut();
+  router.push("/login");
+  auth.value = false;
+};
 
 // Fetch company details and dynamically set the route
 onMounted(async () => {
@@ -63,20 +128,16 @@ onMounted(async () => {
     console.error("Error fetching company details:", error.message);
   }
 });
-
-// Logout function
-const logoutUser = async () => {
-  await supabase.auth.signOut();
-  router.push("/login");
-  auth.value = false;
-};
-
-defineOptions({
-  name: "MainLayout",
-});
 </script>
 
 <style>
+.q-tab__indicator {
+  display: none;
+}
+
+.q-drawer--open {
+  backdrop-filter: blur(4px);
+}
 /* Include styles for Material Symbols */
 .material-symbols-outlined {
   font-family: "Material Symbols Outlined";
@@ -91,4 +152,6 @@ defineOptions({
   word-wrap: normal;
   direction: ltr;
 }
+
+/* Optional styling for the drawer background dim effect */
 </style>

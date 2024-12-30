@@ -59,25 +59,22 @@
 
         <!-- Right Section: Prospect Needs -->
         <div class="prospect-needs column" style="flex: 1; padding-left: 16px">
-          <div v-if="prospectNeeds.length > 0" class="">
+          <div v-if="prospectNeeds.length > 0 || newCustomNeed">
+            <div class="text-h6">What does this prospect care about?</div>
             <p style="font-size: 15px; font-weight: 500">
-              What does this prospect care about? Click to select their needs.
+              Add or remove prospect needs, then click
+              <span class="text-green">"Generate"</span> content.
             </p>
             <div class="flex wrap q-gutter-md q-mt-md">
               <!-- Existing prospect needs -->
               <q-chip
                 v-for="need in prospectNeeds"
                 :key="need"
-                clickable
-                :color="isSelected(need) ? 'accent' : 'primary'"
+                :color="'primary'"
                 text-color="white"
-                @click="toggleNeedSelection(need)"
                 class="position-relative"
               >
-                <!-- Chip Text -->
                 {{ need }}
-
-                <!-- Delete Icon -->
                 <q-icon
                   name="cancel"
                   size="sm"
@@ -92,7 +89,6 @@
                 clickable
                 color="grey-3"
                 text-color="black"
-                @click.stop
                 class="add-chip"
               >
                 <q-input
@@ -103,16 +99,15 @@
                   @keydown.enter="addCustomNeed"
                 />
               </q-chip>
-              <!-- Generate Content Button -->
             </div>
+            <!-- Generate Content Button -->
             <q-btn
-              color="secondary"
+              color="accent"
               style="color: black"
-              label="Generate Compete Content"
+              label="Generate Content"
               @click="generateContent"
               :loading="loading"
               class="q-mb-md q-mt-lg"
-              v-if="prospectNeeds.length > 0"
             />
           </div>
         </div>
@@ -255,16 +250,8 @@ const queryLLMForNeeds = async () => {
   }
 };
 
-// Step 3: Toggle selected prospect needs
-const toggleNeedSelection = (need) => {
-  if (selectedNeeds.value.includes(need)) {
-    selectedNeeds.value = selectedNeeds.value.filter((n) => n !== need);
-  } else {
-    selectedNeeds.value.push(need);
-  }
-};
-
 // Step 4: Add custom prospect need
+// Removed selection toggle
 const addCustomNeed = () => {
   const trimmedNeed = newCustomNeed.value.trim();
   if (trimmedNeed && !prospectNeeds.value.includes(trimmedNeed)) {
@@ -273,14 +260,9 @@ const addCustomNeed = () => {
   }
 };
 
-// Step 5: Delete a prospect need
 const deleteNeed = (need) => {
   prospectNeeds.value = prospectNeeds.value.filter((n) => n !== need);
-  selectedNeeds.value = selectedNeeds.value.filter((n) => n !== need);
 };
-
-// Step 6: Check if a need is selected
-const isSelected = (need) => selectedNeeds.value.includes(need);
 
 // Step 7: Generate Content
 
@@ -295,8 +277,8 @@ const generateContent = async () => {
       company_uuid: companyUuid.value,
       prospect_name: prospectName.value.trim(),
       prospect_url: prospectUrl.value.trim(),
-      prospect_needs:
-        selectedNeeds.value.length > 0 ? selectedNeeds.value : null, // Pass array directly
+      prospect_needs: prospectNeeds.value.length > 0 ? prospectNeeds.value : [],
+      // Pass array directly
     };
 
     console.log("Inserting Prospect Data:", prospectData);

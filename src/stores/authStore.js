@@ -5,6 +5,7 @@ export const auth = ref(false); // Holds the authentication state
 export const companyName = ref(null); // Holds the company name
 export const companyUuid = ref(null); // Holds the company UUID
 export const companyHasCompetitors = ref(false); // Tracks if company has competitors
+export const userEmail = ref(null);
 
 // Fetch company name and UUID
 export const fetchCompanyDetails = async () => {
@@ -16,6 +17,8 @@ export const fetchCompanyDetails = async () => {
 
     if (user) {
       // Fetch the company name and UUID from the userstorage table using the user's email
+      userEmail.value = user.email;
+
       const { data, error } = await supabase
         .from("userstorage")
         .select("company_name, company_uuid")
